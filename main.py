@@ -108,7 +108,7 @@ def deletar_textos(doc_ids):
     collection.delete_many({'_id': {'$in': doc_ids}})
 
 
-# Baixar o conjunto de stopwords se não tiver feito isso antes
+# Baixar o conjunto de stopwords
 @st.cache_data
 def baixar_stopwords():
     nltk.download('stopwords')
@@ -150,11 +150,11 @@ def gerar_nuvem_de_palavras(documentos):  # Recebe uma lista de textos
 
         # Gerar a nuvem de palavras
         wordcloud = WordCloud(
-            width=2500, height=500,
+            width=2000, height=500,
             background_color='white',
             max_words=200,
             contour_color='steelblue',
-            collocations=True
+            # collocations=True,
         ).generate(texto_filtrado)
 
         # Renderizar a nuvem como imagem
@@ -242,7 +242,8 @@ with st.sidebar:
         ids_para_deletar = st.multiselect(
             'Selecione o(s) texto(s) para deletar:',
             options=[str(doc['_id']) for doc in textos],
-            format_func=lambda x: next(doc['titulo'] for doc in textos if str(doc['_id']) == x)
+            format_func=lambda x: next(doc['titulo'] for doc in textos if str(doc['_id']) == x),
+            placeholder=""
         )
         if st.button('Deletar Selecionados', icon=':material/delete:', use_container_width=True):
             if ids_para_deletar:
@@ -303,14 +304,46 @@ else:
 
 
 # Exibir os textos filtrados
-for doc in documentos_filtrados:
-    st.subheader(doc['titulo'])
-    st.write(f"**Data: {doc['data']}**")
-    st.markdown(doc['texto'])
 
+# Função para agrupar documentos por ano e ordenar os textos
+def agrupar_e_ordenar_documentos(documentos):
+    agrupados = {}
+    for doc in documentos:
+        # Converter a data para um objeto datetime
+        data_datetime = datetime.strptime(doc['data'], "%d-%m-%Y")  # Exemplo de formato "dd-mm-yyyy"
+        doc['data_datetime'] = data_datetime  # Adicionar a data datetime ao documento
 
+        # Extrair o ano do objeto datetime
+        ano = data_datetime.year
 
+        # Agrupar por ano
+        if ano not in agrupados:
+            agrupados[ano] = []
+        agrupados[ano].append(doc)
 
+    # Ordenar os textos em cada ano (mais recentes primeiro)
+    for ano in agrupados:
+        agrupados[ano].sort(key=lambda x: x['data_datetime'], reverse=True)
 
+    return agrupados
 
+# Função para exibir os documentos no Streamlit
+def exibir_documentos_ordenados(documentos):
+    # Agrupar e ordenar os documentos
+    documentos_por_ano = agrupar_e_ordenar_documentos(documentos)
 
+    # Ordenar os anos em ordem decrescente
+    anos_ordenados = sorted(documentos_por_ano.keys(), reverse=True)
+
+    # Exibir os blocos de documentos no Streamlit
+    for ano in anos_ordenados:
+        st.header(ano)
+        for doc in documentos_por_ano[ano]:
+            st.subheader(doc['titulo'])
+            st.write(f"**Data: {doc['data']}**")
+            st.markdown(doc['texto'])
+            st.markdown("---")  # Linha de separação entre documentos
+            
+
+# Exibir os documentos no Streamlit
+exibir_documentos_ordenados(documentos_filtrados)
