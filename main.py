@@ -24,10 +24,14 @@ st.set_page_config(layout="wide")
 # #############################################################################################################
 
 # Configuração da conexão com o MongoDB
-client = MongoClient('mongodb://localhost:27017/')  # Substitua pela URI do seu MongoDB, se necessário
-mongo_db = client['bibl_don_saw']
-collection = mongo_db['textos']
+@st.cache_resource
+def baixar_colecao_textos():
+    client = MongoClient('mongodb://localhost:27017/')  # Substitua pela URI do seu MongoDB, se necessário
+    mongo_db = client['bibl_don_saw']
+    collection = mongo_db['textos']
+    return collection
 
+collection = baixar_colecao_textos()
 
 
 # #############################################################################################################
@@ -51,9 +55,9 @@ def cadastrar_texto(titulo, data, texto):
 @st.dialog("Cadastrar novo texto", width="large")
 def cadastrar():
     with st.form('form_cadastro'):
-        titulo = st.text_input('Título')
-        data = st.date_input('Data', datetime.today(), min_value=datetime(1990, 1, 1), format='DD/MM/YYYY')
-        texto = st.text_area('Texto')
+        titulo = st.text_input('Título:')
+        data = st.date_input('Data:', datetime.today(), min_value=datetime(1990, 1, 1), format='DD/MM/YYYY')
+        texto = st.text_area('Texto em formato **markdown**:')
         submit = st.form_submit_button('Salvar', icon=':material/save:')
 
         if submit:
@@ -105,8 +109,11 @@ def deletar_textos(doc_ids):
 
 
 # Baixar o conjunto de stopwords se não tiver feito isso antes
-nltk.download('stopwords')
+@st.cache_data
+def baixar_stopwords():
+    nltk.download('stopwords')
 
+baixar_stopwords()
 
 
 # Função para gerar a nuvem de palavras ----------------------
@@ -288,10 +295,12 @@ st.divider()
 
 # Lista de documentos -------------------------------
 
+# Contagem de textos
 if len(documentos_filtrados) == 1:
     st.header(f'{len(documentos_filtrados)} texto')
 else:
     st.header(f'{len(documentos_filtrados)} textos')
+
 
 # Exibir os textos filtrados
 for doc in documentos_filtrados:
