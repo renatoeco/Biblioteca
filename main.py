@@ -8,6 +8,8 @@ import re
 import nltk
 from nltk.corpus import stopwords
 
+from fpdf import FPDF
+import base64
 
 
 
@@ -94,7 +96,7 @@ def editar(doc_id):
         with st.form(f'form_edicao_{doc_id}'):
             novo_titulo = st.text_input('Título', value=doc['titulo'])
             nova_data = st.date_input('Data', value=datetime.strptime(doc['data'], '%d-%m-%Y'), format='DD/MM/YYYY')
-            novo_texto = st.text_area('Texto', value=doc['texto'].replace('  \n', '\n'))
+            novo_texto = st.text_area('Texto', height=400, value=doc['texto'].replace('  \n', '\n'))
             salvar = st.form_submit_button('Salvar Alterações', icon=':material/save:')
 
             if salvar:
@@ -200,6 +202,68 @@ def buscar_documentos_por_ano(anos_selecionados):
 
 
 
+# Função para criar e retornar um PDF como bytes
+def criar_pdf(titulo, data, texto):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Definir margens laterais maiores
+    pdf.set_left_margin(20)
+    pdf.set_right_margin(20)
+    pdf.add_page()
+
+    # Adicionar título
+    pdf.set_font("Arial", style="B", size=16)
+    pdf.set_fill_color(240, 240, 240)  # Fundo cinza claro para destacar o título
+    pdf.multi_cell(0, 10, txt=titulo, align="C", fill=False)  # Multi_cell quebra o texto conforme a largura
+
+    # Adicionar autor
+    pdf.ln(10)  # Adicionar um espaçamento
+    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 10, txt="Autor: **Donald Sawyer**", ln=True)
+
+    # Adicionar data
+    # pdf.ln(10)  # Adicionar um espaçamento
+    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 10, txt=f"Data: {data}", ln=True)
+
+    # Adicionar texto principal
+    pdf.ln(10)  # Adicionar um espaçamento
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, txt=texto)
+
+    # Retornar PDF como bytes
+    pdf_output = pdf.output(dest='S').encode('latin1')  # Latin1 para compatibilidade de caracteres
+    return pdf_output
+
+
+
+
+
+
+# # Função para criar e retornar um PDF como bytes
+# def criar_pdf(titulo, data, texto):
+#     pdf = FPDF()
+#     pdf.set_auto_page_break(auto=True, margin=15)
+#     pdf.add_page()
+#     pdf.set_font("Arial", size=12)
+
+#     # Adicionar título
+#     pdf.set_font("Arial", style="B", size=16)
+#     pdf.cell(200, 10, txt=titulo, ln=True, align="C")
+
+#     # Adicionar data
+#     pdf.set_font("Arial", size=12)
+#     pdf.ln(10)  # Adicionar uma linha em branco
+#     pdf.cell(200, 10, txt=f"Data: {data}", ln=True)
+
+#     # Adicionar texto
+#     pdf.ln(10)  # Adicionar uma linha em branco
+#     pdf.multi_cell(0, 10, txt=texto)
+
+#     # Retornar PDF como bytes
+#     pdf_output = pdf.output(dest='S').encode('latin1')  # Latin1 para compatibilidade de caracteres
+#     return pdf_output
 
 
 # ###################################################################################
@@ -307,13 +371,31 @@ else:
 
 # Exibir os textos filtrados
 
-
-# Função do diálogo para ver um texto completo
+# Função do diálogo para ver um texto completo e baixar como PDF
 @st.dialog("Texto completo", width="large")
 def ver_texto(documento):
+
+    # Criar o PDF
+    pdf_bytes = criar_pdf(documento['titulo'], documento['data'], documento['texto'])
+
+    # Botão para baixar o PDF
+    st.download_button(
+        label="Baixar PDF",
+        data=pdf_bytes,
+        file_name=f"{documento['titulo'].replace(' ', '_')}.pdf",
+        mime="application/pdf",
+        icon=":material/file_download:"
+    )
+
+
     st.header(documento['titulo'])
     st.write(f'**{documento["data"]}**')
+ 
+
+    
+    # Mostrar o texto
     st.markdown(documento['texto'])
+
 
 
 # Função para agrupar documentos por ano e ordenar os textos
@@ -357,15 +439,6 @@ def exibir_documentos_ordenados(documentos):
             # PREVIEW
             st.markdown(doc['texto'][:800] + '...')
 
-            # EXPANDER
-            # with st.expander("Ver texto", expanded=False):
-            #     st.markdown(doc['texto'])
-
-            # CONTAINER
-            # preview = st.container(height=250)
-            # with preview:
-            #     st.markdown(doc['texto'])
-
 
             st.button(
                 "Ver texto completo",
@@ -375,10 +448,6 @@ def exibir_documentos_ordenados(documentos):
                 icon=":material/open_in_new:"
             )
 
-
-
-
-            # st.markdown(doc['texto'])
             st.markdown("---")  # Linha de separação entre documentos
             
 
