@@ -10,6 +10,8 @@ from nltk.corpus import stopwords
 
 
 
+
+
 # #############################################################################################################
 # CONFIGURAÇÕES STREAMLIT
 # #############################################################################################################
@@ -298,12 +300,21 @@ st.divider()
 
 # Contagem de textos
 if len(documentos_filtrados) == 1:
-    st.header(f'{len(documentos_filtrados)} texto')
+    st.write(f'**{len(documentos_filtrados)} texto**')
 else:
-    st.header(f'{len(documentos_filtrados)} textos')
+    st.write(f'**{len(documentos_filtrados)} textos**')
 
 
 # Exibir os textos filtrados
+
+
+# Função do diálogo para ver um texto completo
+@st.dialog("Texto completo", width="large")
+def ver_texto(documento):
+    st.header(documento['titulo'])
+    st.write(f'**{documento["data"]}**')
+    st.markdown(documento['texto'])
+
 
 # Função para agrupar documentos por ano e ordenar os textos
 def agrupar_e_ordenar_documentos(documentos):
@@ -340,8 +351,34 @@ def exibir_documentos_ordenados(documentos):
         st.header(ano)
         for doc in documentos_por_ano[ano]:
             st.subheader(doc['titulo'])
-            st.write(f"**Data: {doc['data']}**")
-            st.markdown(doc['texto'])
+            # st.write(f"**{doc['data']}**")
+            st.markdown(f"<p style='font-size:20px; '>{doc['data']}</p>", unsafe_allow_html=True)
+
+            # PREVIEW
+            st.markdown(doc['texto'][:800] + '...')
+
+            # EXPANDER
+            # with st.expander("Ver texto", expanded=False):
+            #     st.markdown(doc['texto'])
+
+            # CONTAINER
+            # preview = st.container(height=250)
+            # with preview:
+            #     st.markdown(doc['texto'])
+
+
+            st.button(
+                "Ver texto completo",
+                key=f"ver_texto_{doc['titulo']}",
+                on_click=ver_texto,
+                args=(doc,),
+                icon=":material/open_in_new:"
+            )
+
+
+
+
+            # st.markdown(doc['texto'])
             st.markdown("---")  # Linha de separação entre documentos
             
 
