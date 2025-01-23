@@ -11,7 +11,6 @@ from fpdf import FPDF
 
 
 
-
 # #############################################################################################################
 # CONFIGURAÇÕES STREAMLIT
 # #############################################################################################################
@@ -168,7 +167,6 @@ def gerar_nuvem_de_palavras(documentos):  # Recebe uma lista de textos
         st.warning("Nenhum texto encontrado.")
 
 
-
 # Função para buscar documentos com base nos anos selecionados -----------------
 def buscar_documentos_por_ano(anos_selecionados):
 
@@ -197,7 +195,6 @@ def buscar_documentos_por_ano(anos_selecionados):
     return documentos_filtrados
 
 
-
 # Função para buscar documentos com base nos termos selecionados -----------------
 def buscar_documentos_por_palavra(termo, docs):
 
@@ -218,7 +215,6 @@ def buscar_documentos_por_palavra(termo, docs):
             resultado.append(documento)
 
     return resultado
-
 
 
 # Função para criar e retornar um PDF como bytes
@@ -256,162 +252,6 @@ def criar_pdf(titulo, data, texto):
     return pdf_output
 
 
-
-
-
-# ###################################################################################
-# INTERFACE
-# ###################################################################################
-
-st.title("Biblioteca")
-st.write("")
-
-textos = list(collection.find())
-
-
-# Barra lateral ---------------------------------
-
-with st.sidebar:
-
-    # st.write('Filtros')
-
-    aba1, aba2 = st.tabs([":material/search: Filtros", ":material/library_books: Gerenciar textos"])
-
-    with aba1:
-        st.write("")
-
-        # Campo de texto para a busca
-        busca_usuario = st.text_input("Digite uma palavra:", placeholder="Digite uma palavra", label_visibility="collapsed")
-
-        # Capta a busca se a pessoa apertar enter
-        st.session_state.busca_usuario = busca_usuario
-
-        # Capta a busca se a pessoa apertar o botão
-        # col2.write('')
-        if st.button("Pesquisar", type="primary", use_container_width=True, icon=":material/search:"):
-            # Buscar documentos (com ou sem palavra-chave)
-            if busca_usuario.strip():  # Garantir que não seja vazio
-                st.session_state['busca_usuario'] = busca_usuario
-            else:
-                st.session_state['busca_usuario'] = None
-
-
-        # Pílulas dos ANOS
-        # Obter todas as datas dos documentos no banco
-
-        datas_raw = list(collection.find({}, {"_id": 0, "data": 1}))  # Buscar apenas as datas
-
-        # Converter datas para datetime
-        datas = [datetime.strptime(doc['data'], '%d-%m-%Y') for doc in datas_raw]
-
-        # Extrair os anos (ignorando o mês)
-        anos = sorted(set(d.year for d in datas))
-
-        # Criar labels como "Ano" para os intervalos
-        labels = [str(ano) for ano in anos]
-
-        st.write('')
-
-        # Usar o st.pills para permitir a seleção de múltiplos anos
-        anos_selecionados = st.pills(
-            "Anos:",
-            options=labels,
-            selection_mode="multi",  # Permitir múltiplas seleções
-            default=None,
-        )
-
-
-    with aba2:
-
-
-
-        senha = st.text_input("Senha", type="password")
-
-        if senha == st.secrets.senhas.senha:
-
-            st.write('')
-
-            st.write("**CADASTRAR**")
-            # Butão para o diálogo para "Novo Texto"
-            if st.button("Novo Texto",  use_container_width=True, icon=":material/add:"):
-                cadastrar()
-
-            st.write('')
-
-            # Área para "Editar Texto"
-            st.markdown("### EDITAR")
-            # textos = list(collection.find())
-            texto_selecionado = st.selectbox(
-                'Selecione um texto para editar:',
-                options=[None] + textos,
-                format_func=lambda x: x['titulo'] if x else ""
-            )
-            if st.button('Editar Texto', icon=':material/edit:', use_container_width=True):
-                if texto_selecionado:
-                    editar(texto_selecionado['_id'])
-                else:
-                    st.warning('Nenhum texto selecionado para editar.')
-
-            st.write('')
-
-            # Área para "Deletar Texto"
-            st.markdown("### DELETAR")
-            ids_para_deletar = st.multiselect(
-                'Selecione o(s) texto(s) para deletar:',
-                options=[str(doc['_id']) for doc in textos],
-                format_func=lambda x: next(doc['titulo'] for doc in textos if str(doc['_id']) == x),
-                placeholder=""
-            )
-            if st.button('Deletar Selecionados', icon=':material/delete:', use_container_width=True):
-                if ids_para_deletar:
-                    doc_ids = [doc['_id'] for doc in textos if str(doc['_id']) in ids_para_deletar]
-                    deletar_textos(doc_ids)
-                    st.success(f'{len(doc_ids)} texto(s) deletado(s) com sucesso!')
-                    time.sleep(2)
-                    st.rerun()
-                else:
-                    st.warning('Nenhum texto selecionado para deletar.')
-
-
-
-
-# Iniciando a variável pra guardar a busca do usuário, caso ela não exista
-if 'busca_usuario' not in st.session_state:
-    st.session_state.busca_usuario = None
-
-
-
-# Aplicando filtros
-
-# Buscar os textos que correspondem aos anos selecionados
-documentos_filtrados = buscar_documentos_por_ano(anos_selecionados)
-
-# Buscar os textos que correspondem ao termo de busca
-if st.session_state.busca_usuario:
-    documentos_filtrados_final = buscar_documentos_por_palavra(st.session_state.busca_usuario, documentos_filtrados)
-else:
-    documentos_filtrados_final = documentos_filtrados
-
-
-
-#  Nuvem de palavras -------------------------------
-
-# Gerar a nuvem de palavras com os textos filtrados
-gerar_nuvem_de_palavras(documentos_filtrados_final)
-
-
-
-# Lista de documentos -------------------------------
-
-# Contagem de textos
-if len(documentos_filtrados_final) == 1:
-    st.subheader(f'**{len(documentos_filtrados_final)} texto**')
-else:
-    st.subheader(f'**{len(documentos_filtrados_final)} textos**')
-
-
-# Exibir os textos filtrados
-
 # Função do diálogo para ver um texto completo e baixar como PDF
 @st.dialog("Texto completo", width="large")
 def ver_texto(documento):
@@ -433,7 +273,6 @@ def ver_texto(documento):
   
     # Mostrar o texto
     st.markdown(documento['texto'])
-
 
 
 # Função para agrupar documentos por ano e ordenar os textos
@@ -490,12 +329,180 @@ def exibir_documentos_ordenados(documentos):
             st.markdown("---")  # Linha de separação entre documentos
             
 
-# Exibir os documentos no Streamlit
+
+# ###################################################################################
+# TRATAMENTO DE TEXTO
+# ###################################################################################
+
+textos_raw = list(collection.find())
+
+# Criar um conjunto de caracteres suportados
+supported_characters = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,!?@#$%^&*ºª()_+-=~[]}{|;:'\"<>/? áéíóúàèìòùâêîôûãõäëïöüñçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÃÕÄËÏÖÜÑÇ \n")
+
+# Função para substituir caracteres não suportados por ' '
+def replace_unsupported_chars(text):
+    return ''.join(char if char in supported_characters else ' ' for char in text)
+
+# Processar cada texto na estrutura de textos_raw
+textos = []
+
+for item in textos_raw:
+    processed_item = {
+        "_id": item["_id"],
+        "titulo": replace_unsupported_chars(item["titulo"]) if "titulo" in item else " ",
+        "data": item["data"],  # Data não precisa de processamento
+        "texto": replace_unsupported_chars(item["texto"]) if "texto" in item else " "
+    }
+    textos.append(processed_item)
+
+
+# ###################################################################################
+# INTERFACE
+# ###################################################################################
+
+# Iniciando a variável pra guardar a busca do usuário, caso ela não exista
+if 'busca_usuario' not in st.session_state:
+    st.session_state.busca_usuario = None
+
+
+# Barra lateral ---------------------------------
+
+with st.sidebar:
+
+    st.subheader('Filtros')
+
+    st.write("")
+
+    # Campo de texto para a busca
+    busca_usuario = st.text_input("Digite uma palavra:", placeholder="Digite uma palavra", label_visibility="collapsed")
+
+    # Capta a busca se a pessoa apertar enter
+    st.session_state.busca_usuario = busca_usuario
+
+    # Capta a busca se a pessoa apertar o botão
+    if st.button("Pesquisar", type="primary", use_container_width=True, icon=":material/search:"):
+        # Buscar documentos (com ou sem palavra-chave)
+        if busca_usuario.strip():  # Garantir que não seja vazio
+            st.session_state['busca_usuario'] = busca_usuario
+        else:
+            st.session_state['busca_usuario'] = None
+
+
+    # Pílulas dos ANOS
+    # Obter todas as datas dos documentos no banco
+
+    datas_raw = list(collection.find({}, {"_id": 0, "data": 1}))  # Buscar apenas as datas
+
+    # Converter datas para datetime
+    datas = [datetime.strptime(doc['data'], '%d-%m-%Y') for doc in datas_raw]
+
+    # Extrair os anos (ignorando o mês)
+    anos = sorted(set(d.year for d in datas))
+
+    # Criar labels como "Ano" para os intervalos
+    labels = [str(ano) for ano in anos]
+
+    st.write('')
+
+    # Usar o st.pills para permitir a seleção de múltiplos anos
+    anos_selecionados = st.pills(
+        "Anos:",
+        options=labels,
+        selection_mode="multi",  # Permitir múltiplas seleções
+        default=None,
+    )
+
+    # Pular linhas
+    for _ in range(25):
+        st.write('')
+
+    # Popover para gerenciar os textos
+    with st.popover("Adm", icon=":material/settings:", use_container_width=True):
+    
+        senha = st.text_input("Senha", type="password")
+
+        if senha == st.secrets.senhas.senha:
+
+            aba1, aba2, aba3 = st.tabs([":material/add: Cadastrar", ":material/edit: Editar", ":material/delete: Deletar"])
+
+            st.write('')
+
+            with aba1:
+
+                # Butão para o diálogo para "Novo Texto"
+                if st.button("Novo Texto",  use_container_width=True, icon=":material/add:"):
+                    cadastrar()
+
+            with aba2:
+
+                # Área para "Editar Texto"
+                texto_selecionado = st.selectbox(
+                    'Selecione um texto para editar:',
+                    options=[None] + textos,
+                    format_func=lambda x: x['titulo'] if x else ""
+                )
+                if st.button('Editar Texto', icon=':material/edit:', use_container_width=True):
+                    if texto_selecionado:
+                        editar(texto_selecionado['_id'])
+                    else:
+                        st.warning('Nenhum texto selecionado para editar.')
+
+            with aba3:
+
+                # Área para "Deletar Texto"
+                ids_para_deletar = st.multiselect(
+                    'Selecione o(s) texto(s) para deletar:',
+                    options=[str(doc['_id']) for doc in textos],
+                    format_func=lambda x: next(doc['titulo'] for doc in textos if str(doc['_id']) == x),
+                    placeholder=""
+                )
+                if st.button('Deletar Selecionados', icon=':material/delete:', use_container_width=True):
+                    if ids_para_deletar:
+                        doc_ids = [doc['_id'] for doc in textos if str(doc['_id']) in ids_para_deletar]
+                        deletar_textos(doc_ids)
+                        st.success(f'{len(doc_ids)} texto(s) deletado(s) com sucesso!')
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        st.warning('Nenhum texto selecionado para deletar.')
+
+
+# TÍTULO
+st.title("Biblioteca")
+
+st.write("")
+
+# Aplicando filtros
+
+# Buscar os textos que correspondem aos anos selecionados
+documentos_filtrados = buscar_documentos_por_ano(anos_selecionados)
+
+# Buscar os textos que correspondem ao termo de busca
+if st.session_state.busca_usuario:
+    documentos_filtrados_final = buscar_documentos_por_palavra(st.session_state.busca_usuario, documentos_filtrados)
+else:
+    documentos_filtrados_final = documentos_filtrados
+
+
+#  Nuvem de palavras -------------------------------
+
+# Gerar a nuvem de palavras com os textos filtrados
+gerar_nuvem_de_palavras(documentos_filtrados_final)
+
+
+# Lista de documentos -------------------------------
+
+# Contagem de textos
+if len(documentos_filtrados_final) == 1:
+    st.subheader(f'**{len(documentos_filtrados_final)} texto**')
+else:
+    st.subheader(f'**{len(documentos_filtrados_final)} textos**')
+
+
+# Exibir os textos filtrados
 exibir_documentos_ordenados(documentos_filtrados_final)
 
 
 
-
-# Falta controlar todos os caracteres, pra não dar erro de renderização do pdf.
 
 # Falta colocar o pdf pra renderizar markdown.
