@@ -266,9 +266,14 @@ def criar_pdf(titulo, data, texto):
 st.title("Biblioteca")
 st.write("")
 
+textos = list(collection.find())
+
+
 # Barra lateral ---------------------------------
 
 with st.sidebar:
+
+    # st.write('Filtros')
 
     aba1, aba2 = st.tabs([":material/search: Filtros", ":material/library_books: Gerenciar textos"])
 
@@ -317,49 +322,55 @@ with st.sidebar:
 
 
     with aba2:
-        
-        st.write('')
 
-        st.write("**CADASTRAR**")
-        # Butão para o diálogo para "Novo Texto"
-        if st.button("Novo Texto",  use_container_width=True, icon=":material/add:"):
-            cadastrar()
 
-        st.write('')
 
-        # Área para "Editar Texto"
-        st.markdown("### EDITAR")
-        textos = list(collection.find())
-        texto_selecionado = st.selectbox(
-            'Selecione um texto para editar:',
-            options=[None] + textos,
-            format_func=lambda x: x['titulo'] if x else ""
-        )
-        if st.button('Editar Texto', icon=':material/edit:', use_container_width=True):
-            if texto_selecionado:
-                editar(texto_selecionado['_id'])
-            else:
-                st.warning('Nenhum texto selecionado para editar.')
+        senha = st.text_input("Senha", type="password")
 
-        st.write('')
+        if senha == st.secrets.senhas.senha:
 
-        # Área para "Deletar Texto"
-        st.markdown("### DELETAR")
-        ids_para_deletar = st.multiselect(
-            'Selecione o(s) texto(s) para deletar:',
-            options=[str(doc['_id']) for doc in textos],
-            format_func=lambda x: next(doc['titulo'] for doc in textos if str(doc['_id']) == x),
-            placeholder=""
-        )
-        if st.button('Deletar Selecionados', icon=':material/delete:', use_container_width=True):
-            if ids_para_deletar:
-                doc_ids = [doc['_id'] for doc in textos if str(doc['_id']) in ids_para_deletar]
-                deletar_textos(doc_ids)
-                st.success(f'{len(doc_ids)} texto(s) deletado(s) com sucesso!')
-                time.sleep(2)
-                st.rerun()
-            else:
-                st.warning('Nenhum texto selecionado para deletar.')
+            st.write('')
+
+            st.write("**CADASTRAR**")
+            # Butão para o diálogo para "Novo Texto"
+            if st.button("Novo Texto",  use_container_width=True, icon=":material/add:"):
+                cadastrar()
+
+            st.write('')
+
+            # Área para "Editar Texto"
+            st.markdown("### EDITAR")
+            # textos = list(collection.find())
+            texto_selecionado = st.selectbox(
+                'Selecione um texto para editar:',
+                options=[None] + textos,
+                format_func=lambda x: x['titulo'] if x else ""
+            )
+            if st.button('Editar Texto', icon=':material/edit:', use_container_width=True):
+                if texto_selecionado:
+                    editar(texto_selecionado['_id'])
+                else:
+                    st.warning('Nenhum texto selecionado para editar.')
+
+            st.write('')
+
+            # Área para "Deletar Texto"
+            st.markdown("### DELETAR")
+            ids_para_deletar = st.multiselect(
+                'Selecione o(s) texto(s) para deletar:',
+                options=[str(doc['_id']) for doc in textos],
+                format_func=lambda x: next(doc['titulo'] for doc in textos if str(doc['_id']) == x),
+                placeholder=""
+            )
+            if st.button('Deletar Selecionados', icon=':material/delete:', use_container_width=True):
+                if ids_para_deletar:
+                    doc_ids = [doc['_id'] for doc in textos if str(doc['_id']) in ids_para_deletar]
+                    deletar_textos(doc_ids)
+                    st.success(f'{len(doc_ids)} texto(s) deletado(s) com sucesso!')
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    st.warning('Nenhum texto selecionado para deletar.')
 
 
 
