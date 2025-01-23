@@ -7,9 +7,7 @@ import matplotlib.pyplot as plt
 import re
 import nltk
 from nltk.corpus import stopwords
-
 from fpdf import FPDF
-import base64
 
 
 
@@ -167,20 +165,19 @@ def gerar_nuvem_de_palavras(documentos):  # Recebe uma lista de textos
         ax.axis("off")
         st.pyplot(fig)
     else:
-        st.warning("A lista de textos está vazia ou não contém palavras suficientes para gerar a nuvem de palavras.")
+        st.warning("Nenhum texto encontrado.")
 
 
 
 # Função para buscar documentos com base nos anos selecionados -----------------
 def buscar_documentos_por_ano(anos_selecionados):
+
+    documentos_filtrados = []
+
     if anos_selecionados:
-        # Consultar todos os documentos, sem filtro de ano
-        documentos = collection.find({}, {"_id": 0})  # Retorna todos os campos, exceto "_id"
 
-        documentos_filtrados = []
-
-        for doc in documentos:
-            data_str = doc['data']  # A data vem como uma string no formato "dd-mm-yyyy"
+        for texto in textos:
+            data_str = texto['data']  # A data vem como uma string no formato "dd-mm-yyyy"
 
             # Converter a string da data para um objeto datetime
             data = datetime.strptime(data_str, "%d-%m-%Y")  # Usando o formato correto
@@ -188,17 +185,39 @@ def buscar_documentos_por_ano(anos_selecionados):
 
             # Verificar se o ano está na lista de anos selecionados
             if str(ano_documento) in anos_selecionados:
-                documentos_filtrados.append(doc)
+                documentos_filtrados.append(texto)
 
     else:
-        query = {}  # Sem filtro, pega todos os documentos
+        # query = {}  # Sem filtro, pega todos os documentos
 
         # Consultar no banco de dados
-        documentos = collection.find(query, {"_id": 0})  # Retorna todos os campos, exceto "_id"
-        documentos_filtrados = [doc for doc in documentos]
+        # documentos = collection.find(query, {"_id": 0})  # Retorna todos os campos, exceto "_id"
+        documentos_filtrados = textos
 
     return documentos_filtrados
 
+
+
+# Função para buscar documentos com base nos termos selecionados -----------------
+def buscar_documentos_por_palavra(termo, docs):
+
+    # verificar se há um termo
+    termo = termo.lower()  # Remover espaços extras e normalizar para lowercase
+
+    resultado = []
+
+    # Percorrer os documentos para aplicar o filtro de termo-chave
+    for documento in docs:
+
+        # Garantir que o campo "titulo" e "texto" existam e estejam em lowercase
+        titulo = documento.get("titulo", "").lower()
+        texto = documento.get("texto", "").lower()
+
+        # Verificar se a termo aparece no título ou no texto
+        if termo in titulo or termo in texto:
+            resultado.append(documento)
+
+    return resultado
 
 
 
@@ -240,43 +259,64 @@ def criar_pdf(titulo, data, texto):
 
 
 
-
-# # Função para criar e retornar um PDF como bytes
-# def criar_pdf(titulo, data, texto):
-#     pdf = FPDF()
-#     pdf.set_auto_page_break(auto=True, margin=15)
-#     pdf.add_page()
-#     pdf.set_font("Arial", size=12)
-
-#     # Adicionar título
-#     pdf.set_font("Arial", style="B", size=16)
-#     pdf.cell(200, 10, txt=titulo, ln=True, align="C")
-
-#     # Adicionar data
-#     pdf.set_font("Arial", size=12)
-#     pdf.ln(10)  # Adicionar uma linha em branco
-#     pdf.cell(200, 10, txt=f"Data: {data}", ln=True)
-
-#     # Adicionar texto
-#     pdf.ln(10)  # Adicionar uma linha em branco
-#     pdf.multi_cell(0, 10, txt=texto)
-
-#     # Retornar PDF como bytes
-#     pdf_output = pdf.output(dest='S').encode('latin1')  # Latin1 para compatibilidade de caracteres
-#     return pdf_output
-
-
 # ###################################################################################
 # INTERFACE
 # ###################################################################################
 
-
+st.title("Biblioteca")
+st.write("")
 
 # Barra lateral ---------------------------------
 
 with st.sidebar:
-    
-    with st.expander("GERENCIAR TEXTOS", expanded=False, icon=":material/library_books:"):
+
+    aba1, aba2 = st.tabs([":material/search: Filtros", ":material/library_books: Gerenciar textos"])
+
+    with aba1:
+        st.write("")
+
+        # Campo de texto para a busca
+        busca_usuario = st.text_input("Digite uma palavra:", placeholder="Digite uma palavra", label_visibility="collapsed")
+
+        # Capta a busca se a pessoa apertar enter
+        st.session_state.busca_usuario = busca_usuario
+
+        # Capta a busca se a pessoa apertar o botão
+        # col2.write('')
+        if st.button("Pesquisar", type="primary", use_container_width=True, icon=":material/search:"):
+            # Buscar documentos (com ou sem palavra-chave)
+            if busca_usuario.strip():  # Garantir que não seja vazio
+                st.session_state['busca_usuario'] = busca_usuario
+            else:
+                st.session_state['busca_usuario'] = None
+
+
+        # Pílulas dos ANOS
+        # Obter todas as datas dos documentos no banco
+
+        datas_raw = list(collection.find({}, {"_id": 0, "data": 1}))  # Buscar apenas as datas
+
+        # Converter datas para datetime
+        datas = [datetime.strptime(doc['data'], '%d-%m-%Y') for doc in datas_raw]
+
+        # Extrair os anos (ignorando o mês)
+        anos = sorted(set(d.year for d in datas))
+
+        # Criar labels como "Ano" para os intervalos
+        labels = [str(ano) for ano in anos]
+
+        st.write('')
+
+        # Usar o st.pills para permitir a seleção de múltiplos anos
+        anos_selecionados = st.pills(
+            "Anos:",
+            options=labels,
+            selection_mode="multi",  # Permitir múltiplas seleções
+            default=None,
+        )
+
+
+    with aba2:
         
         st.write('')
 
@@ -323,50 +363,40 @@ with st.sidebar:
 
 
 
-# Filtros ------------------------------------------------
-st.subheader("Filtros")
 
-# Obter todas as datas dos documentos no banco
-datas_raw = list(collection.find({}, {"_id": 0, "data": 1}))  # Buscar apenas as datas
+# Iniciando a variável pra guardar a busca do usuário, caso ela não exista
+if 'busca_usuario' not in st.session_state:
+    st.session_state.busca_usuario = None
 
-# Converter datas para datetime
-datas = [datetime.strptime(doc['data'], '%d-%m-%Y') for doc in datas_raw]
 
-# Extrair os anos (ignorando o mês)
-anos = sorted(set(d.year for d in datas))
 
-# Criar labels como "Ano" para os intervalos
-labels = [str(ano) for ano in anos]
-
-# Usar o st.pills para permitir a seleção de múltiplos anos
-anos_selecionados = st.pills(
-    "Anos:",
-    options=labels,
-    selection_mode="multi",  # Permitir múltiplas seleções
-    default=None,
-)
+# Aplicando filtros
 
 # Buscar os textos que correspondem aos anos selecionados
 documentos_filtrados = buscar_documentos_por_ano(anos_selecionados)
+
+# Buscar os textos que correspondem ao termo de busca
+if st.session_state.busca_usuario:
+    documentos_filtrados_final = buscar_documentos_por_palavra(st.session_state.busca_usuario, documentos_filtrados)
+else:
+    documentos_filtrados_final = documentos_filtrados
+
 
 
 #  Nuvem de palavras -------------------------------
 
 # Gerar a nuvem de palavras com os textos filtrados
-gerar_nuvem_de_palavras(documentos_filtrados)
-
-st.divider()
-
+gerar_nuvem_de_palavras(documentos_filtrados_final)
 
 
 
 # Lista de documentos -------------------------------
 
 # Contagem de textos
-if len(documentos_filtrados) == 1:
-    st.write(f'**{len(documentos_filtrados)} texto**')
+if len(documentos_filtrados_final) == 1:
+    st.subheader(f'**{len(documentos_filtrados_final)} texto**')
 else:
-    st.write(f'**{len(documentos_filtrados)} textos**')
+    st.subheader(f'**{len(documentos_filtrados_final)} textos**')
 
 
 # Exibir os textos filtrados
@@ -387,12 +417,9 @@ def ver_texto(documento):
         icon=":material/file_download:"
     )
 
-
     st.header(documento['titulo'])
     st.write(f'**{documento["data"]}**')
- 
-
-    
+  
     # Mostrar o texto
     st.markdown(documento['texto'])
 
@@ -430,7 +457,7 @@ def exibir_documentos_ordenados(documentos):
 
     # Exibir os blocos de documentos no Streamlit
     for ano in anos_ordenados:
-        st.header(ano)
+        st.markdown(f"<h2 style='color: #277f8e '>{ano}</h2>", unsafe_allow_html=True)
         for doc in documentos_por_ano[ano]:
             st.subheader(doc['titulo'])
             # st.write(f"**{doc['data']}**")
@@ -445,11 +472,19 @@ def exibir_documentos_ordenados(documentos):
                 key=f"ver_texto_{doc['titulo']}",
                 on_click=ver_texto,
                 args=(doc,),
-                icon=":material/open_in_new:"
+                icon=":material/open_in_new:",
+                type="primary"
             )
 
             st.markdown("---")  # Linha de separação entre documentos
             
 
 # Exibir os documentos no Streamlit
-exibir_documentos_ordenados(documentos_filtrados)
+exibir_documentos_ordenados(documentos_filtrados_final)
+
+
+
+
+# Falta controlar todos os caracteres, pra não dar erro de renderização do pdf.
+
+# Falta colocar o pdf pra renderizar markdown.
