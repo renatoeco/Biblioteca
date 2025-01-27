@@ -134,7 +134,7 @@ def gerar_nuvem_de_palavras(documentos):  # Recebe uma lista de textos
     stop_words = set(stopwords.words('portuguese'))
 
     # Adicionar palavras customizadas à lista de stopwords
-    palavras_personalizadas = {"se", "têm", "irá", "além disso", "além", "maior", "menor", "menos", "mais", "todo", "sobre", "apenas", "poderia", "poderiam", "outro", "outra", "outros", "outras", "vez", "parte"}
+    palavras_personalizadas = {"se", "têm", "irá", "além disso", "além", "maior", "menor", "menos", "mais", "todo", "sobre", "apenas", "poderia", "poderiam", "outro", "outra", "outros", "outras", "vez", "parte", "et", "al"}
     stop_words.update(palavras_personalizadas)
 
     if texto_concatenado.strip():  # Verifica se há texto para gerar a nuvem
