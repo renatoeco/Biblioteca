@@ -535,9 +535,14 @@ gerar_nuvem_de_palavras(documentos_filtrados_final)
 
 # Contagem de textos
 if len(documentos_filtrados_final) == 1:
-    st.subheader(f'**{len(documentos_filtrados_final)} texto**')
+    st.markdown(f"<h2 style='color: #696969; text-align: center;'>{len(documentos_filtrados_final)} texto</h2>", unsafe_allow_html=True)
+    # st.subheader(f'**{len(documentos_filtrados_final)} texto**')
 else:
-    st.subheader(f'**{len(documentos_filtrados_final)} textos**')
+    # Markdown h2 na cor 696969, alinhado ao centro
+    st.markdown(f"<h2 style='color: #696969; text-align: center;'>{len(documentos_filtrados_final)} textos</h2>", unsafe_allow_html=True)
+
+    
+    # st.subheader(f'**{len(documentos_filtrados_final)} textos**')
 
 
 # Exibir os textos filtrados
