@@ -8,7 +8,8 @@ import re
 import nltk
 from nltk.corpus import stopwords
 from fpdf import FPDF
-
+import markdown  # Para converter Markdown em HTML
+from weasyprint import HTML
 
 
 # #############################################################################################################
@@ -217,39 +218,56 @@ def buscar_documentos_por_palavra(termo, docs):
     return resultado
 
 
-# Função para criar e retornar um PDF como bytes
-def criar_pdf(titulo, data, texto):
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+def criar_pdf(titulo, data, texto_markdown):
+    # Converter o Markdown em HTML
+    texto_html = markdown.markdown(texto_markdown)
 
-    # Definir margens laterais maiores
-    pdf.set_left_margin(20)
-    pdf.set_right_margin(20)
-    pdf.add_page()
+    # Construir o HTML completo para o PDF
+    html_completo = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>{titulo}</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                margin: 20px;
+            }}
+            h1, h2, h3 {{
+                color: #333;
+            }}
+            p, li {{
+                font-size: 14px;
+                line-height: 1.6;
+            }}
+            .titulo {{
+                text-align: center;
+                font-size: 24px;
+                font-weight: bold;
+                margin-bottom: 20px;
+            }}
+            .data {{
+                font-size: 12px;
+                text-align: right;
+                margin-bottom: 20px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="titulo">{titulo}</div>
+        <div class="data">Data: {data}</div>
+        {texto_html}  <!-- Insere o conteúdo convertido do Markdown -->
+    </body>
+    </html>
+    """
 
-    # Adicionar título
-    pdf.set_font("Arial", style="B", size=16)
-    pdf.set_fill_color(240, 240, 240)  # Fundo cinza claro para destacar o título
-    pdf.multi_cell(0, 10, txt=titulo, align="C", fill=False)  # Multi_cell quebra o texto conforme a largura
+    # Gerar o PDF usando WeasyPrint
+    pdf = HTML(string=html_completo).write_pdf()
 
-    # Adicionar autor
-    pdf.ln(10)  # Adicionar um espaçamento
-    pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, txt="Autor: **Donald Sawyer**", ln=True)
+    # Retornar o PDF como bytes
+    return pdf
 
-    # Adicionar data
-    # pdf.ln(10)  # Adicionar um espaçamento
-    pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, txt=f"Data: {data}", ln=True)
-
-    # Adicionar texto principal
-    pdf.ln(10)  # Adicionar um espaçamento
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, txt=texto)
-
-    # Retornar PDF como bytes
-    pdf_output = pdf.output(dest='S').encode('latin1')  # Latin1 para compatibilidade de caracteres
-    return pdf_output
 
 
 # Função do diálogo para ver um texto completo e baixar como PDF
@@ -374,8 +392,6 @@ with st.sidebar:
     st.write("")
     st.write("")
 
-
-
     st.subheader('Filtros')
 
     st.write("")
@@ -397,7 +413,6 @@ with st.sidebar:
 
     # Pílulas dos ANOS
     # Obter todas as datas dos documentos no banco
-
     datas_raw = list(collection.find({}, {"_id": 0, "data": 1}))  # Buscar apenas as datas
 
     # Converter datas para datetime
@@ -420,58 +435,73 @@ with st.sidebar:
     )
 
     # Pular linhas
-    for _ in range(20):
+    for _ in range(10):
         st.write('')
 
-    # Popover para gerenciar os textos
+
     with st.popover("Adm", icon=":material/settings:", use_container_width=True):
-    
-        senha = st.text_input("Senha", type="password")
 
-        if senha == st.secrets.senhas.senha:
+        # Espaço reservado para a entrada da senha
+        container_senha_titulo = st.empty()
 
-            aba1, aba2, aba3 = st.tabs([":material/add: Cadastrar", ":material/edit: Editar", ":material/delete: Deletar"])
+        # Entrada de senha permanece visível até ser validada
+        senha = container_senha_titulo.text_input("Senha", type="password")
 
-            st.write('')
+        if senha:  # Verifica se algo foi digitado
+            if senha == st.secrets.senhas.senha:
+                # Substitui o conteúdo do container apenas ao acertar a senha
+                container_senha_titulo.empty()  # Remove o text_input
+                st.subheader("Gerenciar textos")  # Mostra o gerenciador de textos
 
-            with aba1:
+                # Tabs para as operações
+                aba1, aba2, aba3 = st.tabs([
+                    ":material/add: Cadastrar",
+                    ":material/edit: Editar",
+                    ":material/delete: Deletar"
+                ])
 
-                # Butão para o diálogo para "Novo Texto"
-                if st.button("Novo Texto",  use_container_width=True, icon=":material/add:"):
-                    cadastrar()
+                with aba1:
+                    # Botão para diálogo de "Novo Texto"
+                    if st.button("Novo Texto", use_container_width=True, icon=":material/add:"):
+                        cadastrar()
 
-            with aba2:
+                with aba2:
+                    # Área para "Editar Texto"
+                    texto_selecionado = st.selectbox(
+                        'Selecione um texto para editar:',
+                        options=[None] + textos,
+                        format_func=lambda x: x['titulo'] if x else ""
+                    )
+                    if st.button('Editar Texto', icon=':material/edit:', use_container_width=True):
+                        if texto_selecionado:
+                            editar(texto_selecionado['_id'])
+                        else:
+                            st.warning('Nenhum texto selecionado para editar.')
 
-                # Área para "Editar Texto"
-                texto_selecionado = st.selectbox(
-                    'Selecione um texto para editar:',
-                    options=[None] + textos,
-                    format_func=lambda x: x['titulo'] if x else ""
-                )
-                if st.button('Editar Texto', icon=':material/edit:', use_container_width=True):
-                    if texto_selecionado:
-                        editar(texto_selecionado['_id'])
-                    else:
-                        st.warning('Nenhum texto selecionado para editar.')
+                with aba3:
+                    # Área para "Deletar Texto"
+                    ids_para_deletar = st.multiselect(
+                        'Selecione o(s) texto(s) para deletar:',
+                        options=[str(doc['_id']) for doc in textos],
+                        format_func=lambda x: next(doc['titulo'] for doc in textos if str(doc['_id']) == x),
+                        placeholder=""
+                    )
+                    if st.button('Deletar Selecionados', icon=':material/delete:', use_container_width=True):
+                        if ids_para_deletar:
+                            doc_ids = [doc['_id'] for doc in textos if str(doc['_id']) in ids_para_deletar]
+                            deletar_textos(doc_ids)
+                            st.success(f'{len(doc_ids)} texto(s) deletado(s) com sucesso!')
+                            time.sleep(2)
+                            st.rerun()
+                        else:
+                            st.warning('Nenhum texto selecionado para deletar.')
+            else:
+                # Mensagem de erro para senha incorreta
+                st.error("Senha incorreta")
 
-            with aba3:
 
-                # Área para "Deletar Texto"
-                ids_para_deletar = st.multiselect(
-                    'Selecione o(s) texto(s) para deletar:',
-                    options=[str(doc['_id']) for doc in textos],
-                    format_func=lambda x: next(doc['titulo'] for doc in textos if str(doc['_id']) == x),
-                    placeholder=""
-                )
-                if st.button('Deletar Selecionados', icon=':material/delete:', use_container_width=True):
-                    if ids_para_deletar:
-                        doc_ids = [doc['_id'] for doc in textos if str(doc['_id']) in ids_para_deletar]
-                        deletar_textos(doc_ids)
-                        st.success(f'{len(doc_ids)} texto(s) deletado(s) com sucesso!')
-                        time.sleep(2)
-                        st.rerun()
-                    else:
-                        st.warning('Nenhum texto selecionado para deletar.')
+
+# INTERFACE PRINCIPAL ---------------------------
 
 
 # TÍTULO
@@ -509,7 +539,3 @@ else:
 # Exibir os textos filtrados
 exibir_documentos_ordenados(documentos_filtrados_final)
 
-
-
-
-# Falta colocar o pdf pra renderizar markdown.
