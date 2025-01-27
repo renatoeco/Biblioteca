@@ -28,7 +28,9 @@ st.set_page_config(layout="wide")
 # Configuração da conexão com o MongoDB
 @st.cache_resource
 def baixar_colecao_textos():
-    client = MongoClient('mongodb://localhost:27017/')  # Substitua pela URI do seu MongoDB, se necessário
+
+    string_conexao = st.secrets.senhas.string_conexao
+    client = MongoClient(string_conexao)
     mongo_db = client['bibl_don_saw']
     collection = mongo_db['textos']
     return collection
@@ -130,7 +132,7 @@ def gerar_nuvem_de_palavras(documentos):  # Recebe uma lista de textos
     stop_words = set(stopwords.words('portuguese'))
 
     # Adicionar palavras customizadas à lista de stopwords
-    palavras_personalizadas = {"se", "têm", "irá", "além disso", "além", "maior", "menor", "menos", "mais", "todo", "sobre", "apenas"}
+    palavras_personalizadas = {"se", "têm", "irá", "além disso", "além", "maior", "menor", "menos", "mais", "todo", "sobre", "apenas", "poderia", "poderiam", "outro", "outra", "outros", "outras", "vez", "parte"}
     stop_words.update(palavras_personalizadas)
 
     if texto_concatenado.strip():  # Verifica se há texto para gerar a nuvem
